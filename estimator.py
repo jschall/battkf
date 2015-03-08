@@ -2,15 +2,13 @@ import numpy as np
 from math import *
 
 class KalmanFilter:
-    def update(self, meas):
+    def update(self, meas, params=[]):
         meas = np.matrix(meas).T
         P = self.covariance
-        H = self.H(meas)
-        R = self.R()
+        H = self.H(meas, params)
+        R = self.R(params)
         I = np.matrix(np.eye(P.shape[0]))
         x_hat = self.state
-
-        print x_hat
 
         y_tilde = meas - H*x_hat
         S = H * P * H.T + R
@@ -45,47 +43,42 @@ class BattEstimator(KalmanFilter):
         # state vector: resting voltage, battery resistance
         # x hat on wikipedia
         self.state = np.matrix([
-            [ 16.8 ],
-            [ 10 ],
-            [ 0.04 ]
+            [ 0 ],
+            [ 0 ]
             ])
 
         # P on wikipedia
         self.covariance = np.matrix([
-            [ 0 , 0 , 0 ],
-            [ 0 , 0 , 0 ],
-            [ 0 , 0 , 0 ]
+            [ 20**2 , 0 ],
+            [ 0 , 0.1**2 ]
             ])
 
-    def R(self):
+    def R(self,params):
         meas_noise = np.matrix([
-            [ 0.1 ],
             [ 0.1 ]
             ])
         return meas_noise*meas_noise.T
 
     def Q(self,dt):
         return np.matrix([
-            [ 0.005*dt ,   0  , 0 ],
-            [     0    , 1*dt , 0 ],
-            [     0    ,   0  , 0.0001*dt ]
+            [ 0.05*dt ,      0     ],
+            [     0    ,  0.00001*dt ]
             ])
 
-    def H(self, meas):
+    def H(self, meas, params):
         state = self.state
         return np.matrix([
-            [ 1 , 0 , -state.item(1) ],
-            [ 0 , 1 ,       0        ]
+            [ 1 , -params[0] ]
             ])
 
     def resting_voltage_estimate(self):
         return self.state.item(0)
 
-    def current_estimate(self):
+    def resistance_estimate(self):
         return self.state.item(1)
 
-    def resistance_estimate(self):
-        return self.state.item(2)
+    #def current_estimate(self):
+        #return self.state.item(1)
 
     def __str__(self):
         return str(self.state)
