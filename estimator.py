@@ -1,18 +1,18 @@
 import numpy as np
 from math import *
 
-class KalmanFilter:
+class ExtendedKalmanFilter:
     def update(self, meas):
         meas = np.matrix(meas).T
         P = self.covariance
-        H = self.H(meas)
+        H = self.H()
         R = self.R()
         I = np.matrix(np.eye(P.shape[0]))
         x_hat = self.state
 
         print x_hat
 
-        y_tilde = meas - H*x_hat
+        y_tilde = meas - self.h()
         S = H * P * H.T + R
         K = P * H.T * S.I
         x_hat = x_hat + K*y_tilde
@@ -36,46 +36,66 @@ class KalmanFilter:
         self.state = x_hat
         self.covariance = P
 
-    def F(self, dt=0):
+    def F(self, dt):
         return np.matrix(np.eye(self.state.shape[0]))
 
+    def h(self, dt):
+        return H()*self.state
 
-class BattEstimator(KalmanFilter):
+
+class BattEstimator(ExtendedKalmanFilter):
     def __init__(self):
-        # state vector: resting voltage, battery resistance
+        # state vector: open-circuit voltage, current, battery resistance
         # x hat on wikipedia
         self.state = np.matrix([
-            [ 16.8 ],
-            [ 10 ],
-            [ 0.04 ]
+            [ 0 ], #Vo
+            [ 0 ],    #I
+            [ 0 ]  #R
             ])
 
         # P on wikipedia
         self.covariance = np.matrix([
-            [ 0 , 0 , 0 ],
-            [ 0 , 0 , 0 ],
-            [ 0 , 0 , 0 ]
+            [ 20**2 , 0 , 0 ],
+            [ 0 , 5**2 , 0 ],
+            [ 0 , 0 , 0.02**2 ]
             ])
 
     def R(self):
         meas_noise = np.matrix([
-            [ 0.1 ],
-            [ 0.1 ]
+            [ 0.1**2 ],
+            [ 0.1**2 ]
             ])
         return meas_noise*meas_noise.T
 
     def Q(self,dt):
+        VOLT_NOISE = 0.05
+        CURR_NOISE = 1400
+        RES_NOISE  = 0.02/60.0
         return np.matrix([
-            [ 0.005*dt ,   0  , 0 ],
-            [     0    , 1*dt , 0 ],
-            [     0    ,   0  , 0.0001*dt ]
+            [ (VOLT_NOISE*dt)**2 ,          0         ,          0        ],
+            [         0          , (CURR_NOISE*dt)**2 ,          0        ],
+            [         0          ,          0         , (RES_NOISE*dt)**2 ]
             ])
 
-    def H(self, meas):
-        state = self.state
+    def F(self,dt):
+        return np.matrix(np.eye(self.state.shape[0]))
+
+    def h(self):
+        Vo = self.state.item(0)
+        I = self.state.item(1)
+        R = self.state.item(2)
         return np.matrix([
-            [ 1 , 0 , -state.item(1) ],
-            [ 0 , 1 ,       0        ]
+            [ Vo-I*R ],
+            [   I    ]
+            ])
+
+    def H(self):
+        Vo = self.state.item(0)
+        I = self.state.item(1)
+        R = self.state.item(2)
+        return np.matrix([
+            [ 1 , -R , -I ],
+            [ 0 ,  1 ,  0 ]
             ])
 
     def resting_voltage_estimate(self):

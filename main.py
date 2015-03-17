@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from battmodel import BattModel
 from estimator import BattEstimator
 
